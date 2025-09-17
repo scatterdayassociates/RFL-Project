@@ -1289,6 +1289,12 @@ def main():
     with st.spinner("Loading Kataly holdings data..."):
         kataly_holdings = fetch_kataly_holdings()
     
+    # Generate random Quantity values for Kataly holdings
+    if not kataly_holdings.empty and 'Quantity' in kataly_holdings.columns:
+        import random
+        # Generate random quantities between 1000 and 50000
+        kataly_holdings['Quantity'] = [random.randint(1000, 50000) for _ in range(len(kataly_holdings))]
+    
     # Process Kataly holdings to map sectors - only if needed
     if not kataly_holdings.empty:
         if "Sector" not in kataly_holdings.columns or kataly_holdings["Sector"].eq("N/A").all():
