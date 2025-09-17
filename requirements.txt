@@ -7,3 +7,8 @@ sec-api
 reportlab
 sqlalchemy
 pymysql
+mammoth
+python-dateutil
+PyMuPDF
+Pillow
+rapidfuzz
