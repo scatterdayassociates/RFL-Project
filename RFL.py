@@ -1304,7 +1304,7 @@ def main():
                 st.session_state.kataly_holdings = kataly_holdings
     
     # Create tabs for stocks and Kataly bonds
-    tab1, tab2 = st.tabs(["Kataly Bond Portfolio", "Stocks"])
+    tab1, tab2 = st.tabs(["Bond Portfolio", "Stocks"])
     
     with tab1:
         if not kataly_holdings.empty:
@@ -1903,3 +1903,4 @@ def generate_report(selected_sector, profile_df, portfolio_harm_scores):
                 
 if __name__ == "__main__":
     main()
+
