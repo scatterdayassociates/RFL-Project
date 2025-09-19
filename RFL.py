@@ -282,8 +282,18 @@ def add_scoring_columns_to_bonds1(df, sector_scoring_df):
 
         if input_sector == 'Financial':
             input_sector = 'Financial Services'  # Handle missing sectors gracefully
+        
         # Find the best fuzzy match (token sort helps ignore word order)
-        best_match, match_score, _ = process.extractOne(input_sector, known_sectors, scorer=fuzz.token_sort_ratio)
+        # Handle case where known_sectors is empty or extractOne returns None
+        if not known_sectors:
+            continue  # Skip if no known sectors available
+        
+        match_result = process.extractOne(input_sector, known_sectors, scorer=fuzz.token_sort_ratio)
+        
+        if match_result is None:
+            continue  # Skip if no match found
+        
+        best_match, match_score, _ = match_result
 
         if match_score >= 80:  # Acceptable similarity threshold
             sector_total = sector_mapping[best_match]['total_score']
@@ -1903,4 +1913,3 @@ def generate_report(selected_sector, profile_df, portfolio_harm_scores):
                 
 if __name__ == "__main__":
     main()
-
