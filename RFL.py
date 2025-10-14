@@ -898,55 +898,59 @@ def create_sankey_diagram(node_list, source, target, value, node_colors, show_or
 
 
 
-# Function to calculate portfolio harm scores using existing sector and security mean scores
+# Function to calculate portfolio harm scores using Sector Mean Score from displayed bonds
 def calculate_portfolio_harm_scores(kataly_holdings=None):
     
-    # if stock_holdings is not None and not stock_holdings.empty:
-    #     print("Stock Holdings Columns:", stock_holdings.columns.tolist())
-    
-    sector_mean_scores = []
-    security_mean_scores = []
-    total_units = 0
+    print("Calculating portfolio harm scores using Sector Mean Score from displayed bonds")
     print(kataly_holdings)
+    
+    # List to store Sector Mean Score values for average calculation
+    sector_mean_scores = []
+    # List to store Security Mean Score values for total calculation
+    security_mean_scores = []
+    
     # Process bond holdings (Kataly holdings)
     if kataly_holdings is not None and not kataly_holdings.empty:
         for _, row in kataly_holdings.iterrows():
-                sector_score = row.get('Sector Mean Score', 0)
-                if pd.isna(sector_score):
-                    sector_score = 0
-                try:
-                    sector_score = float(sector_score)
-                except (ValueError, TypeError):
-                    sector_score = 0
-                
-                # Get security mean score  
-                raw_score = row.get('Security Mean Score', 0)
-                
-                
-                try:
-                    
-                    security_score = float(str(raw_score).replace(',', ''))
-                except (ValueError, TypeError):
-                    
-                    security_score = 0
-                
-                # Add to lists for averaging
-                sector_mean_scores.append(sector_score)
-                security_mean_scores.append(security_score)
-                
-              
+            sector_mean_score = row.get('Sector Mean Score', 0)
+            security_mean_score = row.get('Security Mean Score', 0)
+            
+            # Handle the Sector Mean Score value (for average calculation)
+            try:
+                # Convert to string, remove any formatting, then to float
+                score_str = str(sector_mean_score).replace(',', '').replace('$', '').strip()
+                if score_str and score_str != '0' and score_str != '0.0':
+                    sector_mean_scores.append(float(score_str))
+                    print(f"Added Sector Mean Score: {float(score_str)}")
+            except (ValueError, TypeError):
+                print(f"Could not convert Sector Mean Score: {sector_mean_score}")
+            
+            # Handle the Security Mean Score value (for total calculation)
+            try:
+                # Convert to string, remove any formatting, then to float
+                security_str = str(security_mean_score).replace(',', '').replace('$', '').strip()
+                if security_str and security_str != '0' and security_str != '0.0':
+                    security_mean_scores.append(float(security_str))
+                    print(f"Added Security Mean Score: {float(security_str)}")
+            except (ValueError, TypeError):
+                print(f"Could not convert Security Mean Score: {security_mean_score}")
+    
+    print(f"Found {len(sector_mean_scores)} Sector Mean Score values: {sector_mean_scores}")
+    print(f"Found {len(security_mean_scores)} Security Mean Score values: {security_mean_scores}")
     
     # If no valid data found, return default values
-    if len(sector_mean_scores) == 0 or len(security_mean_scores) == 0:
+    if len(sector_mean_scores) == 0:
         return {
             'average_score': 0.0,
             'total_score': 0.0,
             'quartile': "N/A"
         }
     
-    # Calculate average scores as specified
-    average_score = sum(sector_mean_scores) / len(sector_mean_scores)  # Average of sector mean scores
-    total_score = sum(security_mean_scores) / len(security_mean_scores)  # Average of security mean scores
+    # Calculate average harm score from Sector Mean Score values
+    average_score = sum(sector_mean_scores) / len(sector_mean_scores)  # Average of Sector Mean Score values
+    total_score = sum(security_mean_scores) / len(security_mean_scores) if len(security_mean_scores) > 0 else 0  # Average of Security Mean Score values
+    
+    print(f"Calculated average: {average_score:.3f} from {len(sector_mean_scores)} bonds")
     
     # Determine quartile (keeping the same quartile boundaries)
     quartile = "N/A"
@@ -1035,7 +1039,7 @@ def calculate_portfolio_harm_scores_stocks(stock_holdings):
 
 def get_combined_portfolio_harm_scores():
     """
-    Convenience function to get portfolio harm scores using bonds, manually added bonds, and stocks from session state
+    Convenience function to get portfolio harm scores using only the displayed bonds (top 5)
     """
     # Get Kataly bond holdings from session state
     kataly_holdings = st.session_state.get('kataly_holdings1', pd.DataFrame())
@@ -1046,9 +1050,10 @@ def get_combined_portfolio_harm_scores():
     # Combine all bond holdings (Kataly + manually added)
     all_bond_holdings = pd.DataFrame()
     
-    # Add Kataly holdings if available
+    # Add Kataly holdings if available - BUT ONLY TOP 5 (displayed bonds)
     if kataly_holdings is not None and not kataly_holdings.empty:
-        all_bond_holdings = kataly_holdings.copy()
+        all_bond_holdings = kataly_holdings.head(5).copy()  # Only use top 5 displayed bonds
+        print("Using only top 5 displayed Kataly Holdings")
         print("Kataly Holdings Columns:", kataly_holdings.columns.tolist())
     
     if manual_bonds is not None and not manual_bonds.empty:
@@ -1913,4 +1918,3 @@ def generate_report(selected_sector, profile_df, portfolio_harm_scores):
                 
 if __name__ == "__main__":
     main()
-
