@@ -1748,7 +1748,7 @@ def main():
     st.subheader(f"Legal Disclamer and Score Methodology", divider="blue")
     st.markdown(" ")
     with st.expander("Legal Disclaimer", expanded=False):
-        disclaimer_content = read_disclaimer_file("Kataly-Disclaimer.docx")
+        disclaimer_content = read_disclaimer_file("RFL-Disclaimer.docx")
         st.markdown(disclaimer_content, unsafe_allow_html=True)
   
     with st.expander("Score Methodology", expanded=False):
@@ -1913,3 +1913,4 @@ def generate_report(selected_sector, profile_df, portfolio_harm_scores):
                 
 if __name__ == "__main__":
     main()
+
