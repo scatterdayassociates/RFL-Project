@@ -1039,28 +1039,18 @@ def calculate_portfolio_harm_scores_stocks(stock_holdings):
 
 def get_combined_portfolio_harm_scores():
     """
-    Convenience function to get portfolio harm scores using only the displayed bonds (top 5)
+    Calculate portfolio harm scores using only user-added bonds (excluding Kataly bonds)
     """
-    # Get Kataly bond holdings from session state
-    kataly_holdings = st.session_state.get('kataly_holdings1', pd.DataFrame())
-    
-    # Get manually added bond holdings from session state
+    # Get manually added bond holdings from session state only
     manual_bonds = st.session_state.get('df_bonds_scores', pd.DataFrame())
     
-    # Combine all bond holdings (Kataly + manually added)
-    all_bond_holdings = pd.DataFrame()
-    
-    # Add Kataly holdings if available - BUT ONLY TOP 5 (displayed bonds)
-    if kataly_holdings is not None and not kataly_holdings.empty:
-        all_bond_holdings = kataly_holdings.head(5).copy()  # Only use top 5 displayed bonds
-        print("Using only top 5 displayed Kataly Holdings")
-        print("Kataly Holdings Columns:", kataly_holdings.columns.tolist())
+    # Only use user-added bonds for calculations
+    user_bond_holdings = pd.DataFrame()
     
     if manual_bonds is not None and not manual_bonds.empty:
+        print("Using user-added bonds only for portfolio calculations")
         print("Manual Holdings Columns:", manual_bonds.columns.tolist())
-
-    # Add manually added bonds if available
-    if manual_bonds is not None and not manual_bonds.empty:
+        
         # Ensure manual bonds have the required columns and format
         manual_bonds_formatted = manual_bonds.copy()
         
@@ -1068,19 +1058,17 @@ def get_combined_portfolio_harm_scores():
         manual_bonds_formatted['Quantity'] = manual_bonds_formatted['Units']
         manual_bonds_formatted['Sector'] = manual_bonds_formatted['Industry Group']
         
-        # Combine with Kataly holdings
-        if all_bond_holdings.empty:
-            all_bond_holdings = manual_bonds_formatted
-        else:
-            # Ensure both dataframes have the same columns before concatenating
-            common_columns = list(set(all_bond_holdings.columns) & set(manual_bonds_formatted.columns))
-            if common_columns:
-                all_bond_holdings = pd.concat([
-                    all_bond_holdings[common_columns], 
-                    manual_bonds_formatted[common_columns]
-                ], ignore_index=True)
+        user_bond_holdings = manual_bonds_formatted
     
-    return calculate_portfolio_harm_scores(all_bond_holdings)
+    # If no user-added bonds are available, return zero values
+    if user_bond_holdings.empty:
+        return {
+            'average_score': 0.0,
+            'total_score': 0.0,
+            'quartile': 'N/A'
+        }
+    
+    return calculate_portfolio_harm_scores(user_bond_holdings)
 
 def update_portfolio_allocation(df):
     if not df.empty:
@@ -1259,13 +1247,14 @@ def show_sidebar():
 
                 df = fetch_sector_data(selected_sector)
                 if not df.empty:
-                    profile_df = df[['SDH_Indicator', 'SDH_Category', 'Harm_Description', 'Harm_Typology',
+                    profile_df = df[['SDH_Indicator', 'SDH_Category', 'Harm_Description', 'Harm_Typology', 'Claim_Quantification',
                                      'Total_Magnitude', 'Reach', 'Harm_Direction', 'Harm_Duration',"Direct_Indirect_1","Direct_Indirect","Core_Peripheral" ,"Total_Score","Citation_1","Citation_2"]]
                     profile_df = profile_df.rename(columns={
                         'SDH_Indicator': 'SDH Indicator',
                         'SDH_Category': 'SDH Category',
                         'Harm_Description': 'Equity Description',
                         'Harm_Typology': 'Equity Typology',
+                        'Claim_Quantification': 'Claim Quantification',
                         'Total_Magnitude': 'Total Magnitude',
                         'Harm_Direction': 'Equity Direction',
                         'Harm_Duration': 'Equity Duration',
@@ -1322,67 +1311,103 @@ def main():
     tab1, tab2 = st.tabs(["Bond Portfolio", "Stocks"])
     
     with tab1:
-        if not kataly_holdings.empty:
-            # Add scoring columns to kataly holdings
-            kataly_with_scores = add_scoring_columns_to_bonds(kataly_holdings, sector_scoring_df)
+        # BOND PROCESSING DISABLED - No bonds are displayed, so no bond data should be processed
+        # Clear any existing bond data from session state
+        st.session_state.kataly_holdings1 = pd.DataFrame()
+        st.session_state.kataly_holdings1_raw = pd.DataFrame()
+        
+        # if not kataly_holdings.empty:
+        #     # Add scoring columns to kataly holdings
+        #     kataly_with_scores = add_scoring_columns_to_bonds(kataly_holdings, sector_scoring_df)
 
-            # Create a copy for formatting (non-editable)
-            formatted_kataly = kataly_with_scores.copy()
+        #     # Create a copy for formatting (non-editable)
+        #     formatted_kataly = kataly_with_scores.copy()
 
-            # Store original numeric version for editing
-            st.session_state.kataly_holdings1_raw = kataly_with_scores
+        #     # Store original numeric version for editing
+        #     st.session_state.kataly_holdings1_raw = kataly_with_scores
 
-            # Display only top 5 rows (for display purposes)
-            kataly_display = kataly_with_scores.head(5)
-            edited_kataly = st.data_editor(
-                kataly_display,
-                use_container_width=True,
-                num_rows="fixed",  # Fixed rows since we're only showing top 5
-                key="editable_kataly"
-            )
+        #     # Display only top 5 rows (for display purposes) - DISABLED
+        #     # kataly_display = kataly_with_scores.head(5)
+        #     # edited_kataly = st.data_editor(
+        #     #     kataly_display,
+        #     #     use_container_width=True,
+        #     #     num_rows="fixed",  # Fixed rows since we're only showing top 5
+        #     #     key="editable_kataly"
+        #     # )
 
-            # Apply formatting to the full dataset (not just the displayed top 5)
-            formatted_kataly = kataly_with_scores.copy()
-            for col in formatted_kataly.columns:
-                if col == 'Quantity':
-                    formatted_kataly[col] = formatted_kataly[col].apply(lambda x: f"{int(x):,}" if pd.notna(x) else "")
-                elif col == 'Unit_Cost':
-                    formatted_kataly[col] = formatted_kataly[col].apply(lambda x: f"${float(x):.2f}" if pd.notna(x) else "")
-                elif col == 'Total_Cost':
-                    formatted_kataly[col] = formatted_kataly[col].apply(lambda x: f"${int(round(float(x))):,}" if pd.notna(x) else "")
-                elif col == 'Units':
-                    formatted_kataly[col] = formatted_kataly[col].apply(lambda x: f"{int(round(float(x))):,}" if pd.notna(x) else "")
-                elif col == 'Purchase':
-                    formatted_kataly[col] = formatted_kataly[col].apply(lambda x: f"${float(x):.4f}" if pd.notna(x) else "")
-                elif col == 'Market_Value':
-                    formatted_kataly[col] = formatted_kataly[col].apply(lambda x: f"${int(round(float(x))):,}" if pd.notna(x) else "")
-                elif col == 'Accrued':
-                    formatted_kataly[col] = formatted_kataly[col].apply(lambda x: f"${int(round(float(x))):,}" if pd.notna(x) else "")
-                elif col == 'Original':
-                    formatted_kataly[col] = formatted_kataly[col].apply(lambda x: f"${int(round(float(x))):,}" if pd.notna(x) else "")
-                elif col == 'Percent_of_Assets':
-                    formatted_kataly[col] = formatted_kataly[col].apply(lambda x: f"{float(x):.2f}%" if pd.notna(x) else "")
-                elif col == 'Coupon':
-                    formatted_kataly[col] = formatted_kataly[col].apply(lambda x: f"${float(x):.2f}" if pd.notna(x) else "")
-                elif col in ['Sector Total Score', 'Sector Mean Score']:
-                    formatted_kataly[col] = formatted_kataly[col].apply(lambda x: f"{float(x):.2f}" if pd.notna(x) else "0.00")
-                elif col in ['Security Total Score', 'Security Mean Score']:
-                    formatted_kataly[col] = formatted_kataly[col].apply(lambda x: f"{float(x):,.2f}" if pd.notna(x) else "0.00")
+        #     # Apply formatting to the full dataset (not just the displayed top 5)
+        #     formatted_kataly = kataly_with_scores.copy()
+        #     for col in formatted_kataly.columns:
+        #         if col == 'Quantity':
+        #             formatted_kataly[col] = formatted_kataly[col].apply(lambda x: f"{int(x):,}" if pd.notna(x) else "")
+        #         elif col == 'Unit_Cost':
+        #             formatted_kataly[col] = formatted_kataly[col].apply(lambda x: f"${float(x):.2f}" if pd.notna(x) else "")
+        #         elif col == 'Total_Cost':
+        #             formatted_kataly[col] = formatted_kataly[col].apply(lambda x: f"${int(round(float(x))):,}" if pd.notna(x) else "")
+        #         elif col == 'Units':
+        #             formatted_kataly[col] = formatted_kataly[col].apply(lambda x: f"{int(round(float(x))):,}" if pd.notna(x) else "")
+        #         elif col == 'Purchase':
+        #             formatted_kataly[col] = formatted_kataly[col].apply(lambda x: f"${float(x):.4f}" if pd.notna(x) else "")
+        #         elif col == 'Market_Value':
+        #             formatted_kataly[col] = formatted_kataly[col].apply(lambda x: f"${int(round(float(x))):,}" if pd.notna(x) else "")
+        #         elif col == 'Accrued':
+        #             formatted_kataly[col] = formatted_kataly[col].apply(lambda x: f"${int(round(float(x))):,}" if pd.notna(x) else "")
+        #         elif col == 'Original':
+        #             formatted_kataly[col] = formatted_kataly[col].apply(lambda x: f"${int(round(float(x))):,}" if pd.notna(x) else "")
+        #         elif col == 'Percent_of_Assets':
+        #             formatted_kataly[col] = formatted_kataly[col].apply(lambda x: f"{float(x):.2f}%" if pd.notna(x) else "")
+        #         elif col == 'Coupon':
+        #             formatted_kataly[col] = formatted_kataly[col].apply(lambda x: f"${float(x):.2f}" if pd.notna(x) else "")
+        #         elif col in ['Sector Total Score', 'Sector Mean Score']:
+        #             formatted_kataly[col] = formatted_kataly[col].apply(lambda x: f"{float(x):.2f}" if pd.notna(x) else "0.00")
+        #         elif col in ['Security Total Score', 'Security Mean Score']:
+        #             formatted_kataly[col] = formatted_kataly[col].apply(lambda x: f"{float(x):,.2f}" if pd.notna(x) else "0.00")
 
-            # Save the full formatted dataset for background processing
-            st.session_state.kataly_holdings1 = formatted_kataly
+        #     # Save the full formatted dataset for background processing
+        #     st.session_state.kataly_holdings1 = formatted_kataly
 
         if not st.session_state.df_bonds.empty:
-            st.text("Bond Holdings")
+            
 
             st.session_state.df_bonds_scores = add_scoring_columns_to_bonds1(
                 st.session_state.df_bonds[['CUSIP', 'Industry Group', 'Issuer', 'Units','Current Price' ,'Purchase Price','Coupon','Price Return','Income Return', 'Total Return']],
                 sector_scoring_df
             )
 
-            # Display an editable version
+            # Format the display data with proper formatting
+            display_bonds = st.session_state.df_bonds_scores.copy()
+            
+            # Format Units with commas
+            if 'Units' in display_bonds.columns:
+                display_bonds['Units'] = display_bonds['Units'].apply(lambda x: f"{int(x):,}" if pd.notna(x) and str(x).replace('.', '').isdigit() else x)
+            
+            # Format Current Price with dollar sign
+            if 'Current Price' in display_bonds.columns:
+                display_bonds['Current Price'] = display_bonds['Current Price'].apply(lambda x: f"${float(x):.2f}" if pd.notna(x) and str(x).replace('.', '').replace('-', '').isdigit() else x)
+            
+            # Format Purchase Price with dollar sign
+            if 'Purchase Price' in display_bonds.columns:
+                display_bonds['Purchase Price'] = display_bonds['Purchase Price'].apply(lambda x: f"${float(x):.2f}" if pd.notna(x) and str(x).replace('.', '').replace('-', '').isdigit() else x)
+            
+            # Format Coupon with dollar sign
+            if 'Coupon' in display_bonds.columns:
+                display_bonds['Coupon'] = display_bonds['Coupon'].apply(lambda x: f"${float(x):.2f}" if pd.notna(x) and str(x).replace('.', '').replace('-', '').isdigit() else x)
+            
+            # Format Price Return with comma
+            if 'Price Return' in display_bonds.columns:
+                display_bonds['Price Return'] = display_bonds['Price Return'].apply(lambda x: f"{float(x):,.2f}" if pd.notna(x) and str(x).replace('.', '').replace('-', '').isdigit() else x)
+            
+            # Format Income Return with comma
+            if 'Income Return' in display_bonds.columns:
+                display_bonds['Income Return'] = display_bonds['Income Return'].apply(lambda x: f"{float(x):,.2f}" if pd.notna(x) and str(x).replace('.', '').replace('-', '').isdigit() else x)
+            
+            # Format Total Return with comma
+            if 'Total Return' in display_bonds.columns:
+                display_bonds['Total Return'] = display_bonds['Total Return'].apply(lambda x: f"{float(x):,.2f}" if pd.notna(x) and str(x).replace('.', '').replace('-', '').isdigit() else x)
+
+            # Display an editable version with all columns including scoring columns
             st.data_editor(
-                st.session_state.df_bonds_scores[['CUSIP', 'Industry Group', 'Issuer', 'Units','Current Price' ,'Purchase Price','Coupon','Price Return','Income Return', 'Total Return']],
+                display_bonds[['CUSIP', 'Industry Group', 'Issuer', 'Units','Current Price' ,'Purchase Price','Coupon','Price Return','Income Return', 'Total Return', 'Sector Total Score', 'Sector Mean Score', 'Security Total Score', 'Security Mean Score']],
                 use_container_width=True,
                 key="editable_bonds"
             )
@@ -1396,6 +1421,26 @@ def main():
             
             # Format the scoring columns for display
             formatted_stocks = stocks_with_scores.copy()
+            
+            # Format Units with commas
+            if 'Units' in formatted_stocks.columns:
+                formatted_stocks['Units'] = formatted_stocks['Units'].apply(lambda x: f"{int(x):,}" if pd.notna(x) and str(x).replace('.', '').isdigit() else x)
+            
+            # Format Current Price with dollar sign
+            if 'Current Price ($)' in formatted_stocks.columns:
+                formatted_stocks['Current Price ($)'] = formatted_stocks['Current Price ($)'].apply(lambda x: f"${float(x):.2f}" if pd.notna(x) and str(x).replace('.', '').replace('-', '').isdigit() else x)
+            
+            # Format Initial Investment with dollar sign
+            if 'Initial Investment ($)' in formatted_stocks.columns:
+                formatted_stocks['Initial Investment ($)'] = formatted_stocks['Initial Investment ($)'].apply(lambda x: f"${float(x):,.2f}" if pd.notna(x) and str(x).replace('.', '').replace('-', '').isdigit() else x)
+            
+            # Format Gain/Loss with dollar sign
+            if 'Gain/Loss ($)' in formatted_stocks.columns:
+                formatted_stocks['Gain/Loss ($)'] = formatted_stocks['Gain/Loss ($)'].apply(lambda x: f"${float(x):,.2f}" if pd.notna(x) and str(x).replace('.', '').replace('-', '').isdigit() else x)
+            
+            # Format Current Value with dollar sign and comma
+            if 'Current Value ($)' in formatted_stocks.columns:
+                formatted_stocks['Current Value ($)'] = formatted_stocks['Current Value ($)'].apply(lambda x: f"${float(x):,.2f}" if pd.notna(x) and str(x).replace('.', '').replace('-', '').isdigit() else x)
             
             # Format the new scoring columns
             for col in ['Sector Total Score', 'Sector Mean Score']:
@@ -1423,10 +1468,7 @@ def main():
     # NEW SECTION: Portfolio Racial Harm Summary 
     st.markdown("<h3 style='color: #333; border-bottom: 2px solid #6082B6;'>Portfolio Racial Equity Summary</h3>", unsafe_allow_html=True) 
     st.markdown(" ") 
-    # Calculate portfolio harm scores
-    
-    portfolio_harm_scores_bonds = get_combined_portfolio_harm_scores()
-    portfolio_harm_scores_stocks = calculate_portfolio_harm_scores_stocks(st.session_state.stock_holdings)
+    # Calculate portfolio harm scores - MOVED TO AFTER BOND PROCESSING
    
     st.markdown("""
     <style>
@@ -1517,6 +1559,8 @@ def main():
     harm_tab1, harm_tab2 = st.tabs(["Bond Portfolio Harm Scores", "Stock Portfolio Harm Scores"])
 
     with harm_tab1:
+        # Calculate bond portfolio harm scores AFTER bond processing is complete
+        portfolio_harm_scores_bonds = get_combined_portfolio_harm_scores()
         
             # Create the container for the metrics
         st.markdown('<div class="metric-container">', unsafe_allow_html=True)
@@ -1531,7 +1575,7 @@ def main():
                         <div class="tooltip">
                             Average Portfolio Harm Score
                             <span class="info-icon">?</span>
-                            <span class="tooltiptext">This score represents a portfolio level weighted average based on the number of units for each security. It provides a normalized view of harm across your entire bond portfolio holdings.</span>
+                            <span class="tooltiptext">This score represents a portfolio level weighted average based on the number of units for each security. The score is based on a scale of 1-100, where 1 is the score for the highest harm sector and 100 is the score for the lowest harm sector.</span>
                         </div>
                     </div>
                     <div class="metric-value">{portfolio_harm_scores_bonds['average_score']:.1f}</div>
@@ -1559,7 +1603,7 @@ def main():
                         <div class="tooltip">
                             Total Portfolio Harm Quartile
                             <span class="info-icon">?</span>
-                            <span class="tooltiptext">Where the average bond portfolio sits relative to other potential portfolio compositions using Min/Max data standardization. A portfolio exclusively comprised of the lowest harm security would score "0".</span>
+                            <span class="tooltiptext">This score shows where the portfolio sits relative to other potential portfolio compositions. Portfolios in the first quartile (highest harm) range from 1.00-38.80, the second quartile (moderate-high harm) ranges from 38.81 to 50.00, the third quartile (moderate low) ranges from 50.01-82.40 and the fourth quartile (lowest harm) ranges from 82.41-100.00.</span>
                         </div>
                     </div>
                     <div class="metric-value">{portfolio_harm_scores_bonds['quartile']}</div>
@@ -1571,58 +1615,58 @@ def main():
         
 
     with harm_tab2:
+        # Calculate stock portfolio harm scores AFTER stock processing is complete
+        portfolio_harm_scores_stocks = calculate_portfolio_harm_scores_stocks(st.session_state.stock_holdings)
         
-        
-        
-            # Create the container for the metrics
-            st.markdown('<div class="metric-container">', unsafe_allow_html=True)
+        # Create the container for the metrics
+        st.markdown('<div class="metric-container">', unsafe_allow_html=True)
 
-            # Create each box with HTML/CSS
-            col1, col2, col3 = st.columns(3)
+        # Create each box with HTML/CSS
+        col1, col2, col3 = st.columns(3)
 
-            with col1:
-                st.markdown(f"""
-                <div class="metric-box">
-                    <div class="metric-title">
-                        <div class="tooltip">
-                            Average Portfolio Harm Score
-                            <span class="info-icon">?</span>
-                            <span class="tooltiptext">This score represents a portfolio level weighted average based on the number of shares for each security. It provides a normalized view of harm across your entire stock portfolio holdings.</span>
-                        </div>
+        with col1:
+            st.markdown(f"""
+            <div class="metric-box">
+                <div class="metric-title">
+                    <div class="tooltip">
+                        Average Portfolio Harm Score
+                        <span class="info-icon">?</span>
+                        <span class="tooltiptext">This score represents a portfolio level weighted average based on the number of shares for each security. It provides a normalized view of harm across your entire stock portfolio holdings.</span>
                     </div>
-                    <div class="metric-value">{portfolio_harm_scores_stocks['average_score']:.1f}</div>
                 </div>
-                """, unsafe_allow_html=True)
+                <div class="metric-value">{portfolio_harm_scores_stocks['average_score']:.1f}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
-            with col2:
-                st.markdown(f"""
-                <div class="metric-box">
-                    <div class="metric-title">
-                        <div class="tooltip">
-                            Total Portfolio Harm Score
-                            <span class="info-icon">?</span>
-                            <span class="tooltiptext">The total score represented by all stock holdings. This value is most useful when comparing against other portfolios or portfolio compositions of different sizes.</span>
-                        </div>
+        with col2:
+            st.markdown(f"""
+            <div class="metric-box">
+                <div class="metric-title">
+                    <div class="tooltip">
+                        Total Portfolio Harm Score
+                        <span class="info-icon">?</span>
+                        <span class="tooltiptext">The total score represented by all stock holdings. This value is most useful when comparing against other portfolios or portfolio compositions of different sizes.</span>
                     </div>
-                    <div class="metric-value">{int(portfolio_harm_scores_stocks['total_score']):,}</div>
                 </div>
-                """, unsafe_allow_html=True)
+                <div class="metric-value">{int(portfolio_harm_scores_stocks['total_score']):,}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
-            with col3:
-                st.markdown(f"""
-                <div class="metric-box">
-                    <div class="metric-title">
-                        <div class="tooltip">
-                            Total Portfolio Harm Quartile
-                            <span class="info-icon">?</span>
-                            <span class="tooltiptext">Where the average stock portfolio sits relative to other potential portfolio compositions using Min/Max data standardization. A portfolio exclusively comprised of the lowest harm security would score "0".</span>
-                        </div>
+        with col3:
+            st.markdown(f"""
+            <div class="metric-box">
+                <div class="metric-title">
+                    <div class="tooltip">
+                        Total Portfolio Harm Quartile
+                        <span class="info-icon">?</span>
+                        <span class="tooltiptext">Where the average stock portfolio sits relative to other potential portfolio compositions using Min/Max data standardization. A portfolio exclusively comprised of the lowest harm security would score "0".</span>
                     </div>
-                    <div class="metric-value">{portfolio_harm_scores_stocks['quartile']}</div>
                 </div>
-                """, unsafe_allow_html=True)
+                <div class="metric-value">{portfolio_harm_scores_stocks['quartile']}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
     
     # Add space
     st.markdown(" ")
@@ -1709,7 +1753,7 @@ def main():
                 st.markdown(" ")
                 
                 # Create a DataFrame with required columns
-                profile_df = df[['SDH_Indicator', 'SDH_Category', 'Harm_Description', 'Harm_Typology', 
+                profile_df = df[['SDH_Indicator', 'SDH_Category', 'Harm_Description', 'Harm_Typology', 'Claim_Quantification',
                             'Total_Magnitude', 'Reach', 'Harm_Direction', 'Harm_Duration',"Total_Score","Direct_Indirect","Direct_Indirect_1",'Core_Peripheral',"Citation_1","Citation_2"]]
                 
                 # Rename columns for display
@@ -1717,6 +1761,7 @@ def main():
                     'SDH_Indicator': 'SDH Indicator',
                     'SDH_Category': 'SDH Category', 
                     'Harm_Typology': 'Equity Typology',
+                    'Claim_Quantification': 'Claim Quantification',
                     "Harm_Description": 'Equity Description',
                     'Total_Magnitude': 'Total Magnitude',
                     'Harm_Direction': 'Equity Direction',
@@ -1830,8 +1875,8 @@ def generate_report(selected_sector, profile_df, portfolio_harm_scores):
     cell_style = ParagraphStyle(
         'CellStyle',
         parent=styles['Normal'],
-        fontSize=8,
-        leading=10,
+        fontSize=6,
+        leading=8,
         wordWrap='CJK'
     )
     
@@ -1887,10 +1932,11 @@ def generate_report(selected_sector, profile_df, portfolio_harm_scores):
         table_data.append(table_row)
     
     # Create the table with more appropriate column widths
-    # Adjust these widths based on your specific content
+    # Landscape letter page is ~792 points wide, accounting for margins (~50 points each side)
+    # Available width: ~692 points for 15 columns = ~46 points per column average
     harm_table = Table(
         table_data, 
-        colWidths=[80, 80, 150, 80, 60, 60, 70, 70, 60],
+        colWidths=[45, 45, 80, 45, 60, 40, 40, 45, 45, 40, 50, 50, 50, 40, 40],
         repeatRows=1  # Repeat header row on each page
     )
     
@@ -1901,11 +1947,14 @@ def generate_report(selected_sector, profile_df, portfolio_harm_scores):
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-        ('TOPPADDING', (0, 0), (-1, -1), 6),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('FONTSIZE', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 4),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ('LEFTPADDING', (0, 0), (-1, -1), 2),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 2),
         ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black)
     ]))
     
     elements.append(harm_table)
