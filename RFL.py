@@ -1404,6 +1404,14 @@ def main():
             # Format Total Return with comma
             if 'Total Return' in display_bonds.columns:
                 display_bonds['Total Return'] = display_bonds['Total Return'].apply(lambda x: f"{float(x):,.2f}" if pd.notna(x) and str(x).replace('.', '').replace('-', '').isdigit() else x)
+            
+            # Format Security Total Score with comma
+            if 'Security Total Score' in display_bonds.columns:
+                display_bonds['Security Total Score'] = display_bonds['Security Total Score'].apply(lambda x: f"{float(x):,.2f}" if pd.notna(x) and str(x).replace('.', '').replace('-', '').isdigit() else x)
+            
+            # Format Security Mean Score with comma
+            if 'Security Mean Score' in display_bonds.columns:
+                display_bonds['Security Mean Score'] = display_bonds['Security Mean Score'].apply(lambda x: f"{float(x):,.2f}" if pd.notna(x) and str(x).replace('.', '').replace('-', '').isdigit() else x)
 
             # Display an editable version with all columns including scoring columns
             st.data_editor(
@@ -1875,8 +1883,8 @@ def generate_report(selected_sector, profile_df, portfolio_harm_scores):
     cell_style = ParagraphStyle(
         'CellStyle',
         parent=styles['Normal'],
-        fontSize=6,
-        leading=8,
+        fontSize=5,
+        leading=6,
         wordWrap='CJK'
     )
     
@@ -1934,9 +1942,10 @@ def generate_report(selected_sector, profile_df, portfolio_harm_scores):
     # Create the table with more appropriate column widths
     # Landscape letter page is ~792 points wide, accounting for margins (~50 points each side)
     # Available width: ~692 points for 15 columns = ~46 points per column average
+    # Reduced widths to fit better
     harm_table = Table(
         table_data, 
-        colWidths=[45, 45, 80, 45, 60, 40, 40, 45, 45, 40, 50, 50, 50, 40, 40],
+        colWidths=[35, 35, 60, 35, 45, 30, 30, 35, 35, 30, 40, 40, 40, 30, 30],
         repeatRows=1  # Repeat header row on each page
     )
     
@@ -1947,14 +1956,14 @@ def generate_report(selected_sector, profile_df, portfolio_harm_scores):
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 6),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 4),
-        ('TOPPADDING', (0, 0), (-1, -1), 2),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
-        ('LEFTPADDING', (0, 0), (-1, -1), 2),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+        ('FONTSIZE', (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 2),
+        ('TOPPADDING', (0, 0), (-1, -1), 1),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
+        ('LEFTPADDING', (0, 0), (-1, -1), 1),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 1),
         ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.black)
+        ('GRID', (0, 0), (-1, -1), 0.3, colors.black)
     ]))
     
     elements.append(harm_table)
