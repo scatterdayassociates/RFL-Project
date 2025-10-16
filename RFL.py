@@ -955,13 +955,13 @@ def calculate_portfolio_harm_scores(kataly_holdings=None):
     # Determine quartile (keeping the same quartile boundaries)
     quartile = "N/A"
     if average_score <= 38.80:
-        quartile = f"{average_score:.2f} - Quartile 1"
+        quartile = "Quartile 1"
     elif 38.80 < average_score <= 50.00:
-        quartile = f"{average_score:.2f} - Quartile 2"
+        quartile = "Quartile 2"
     elif 50.00 < average_score <= 82.40:
-        quartile = f"{average_score:.2f} - Quartile 3"
+        quartile = "Quartile 3"
     elif average_score > 82.40:
-        quartile = f"{average_score:.2f} - Quartile 4"
+        quartile = "Quartile 4"
 
     return {
         'average_score': average_score,
@@ -1023,13 +1023,13 @@ def calculate_portfolio_harm_scores_stocks(stock_holdings):
     # Determine quartile (keeping the same quartile boundaries)
     quartile = "N/A"
     if average_score <= 38.80:
-        quartile = f"{average_score:.2f} - Quartile 1"
+        quartile = "Quartile 1"
     elif 38.80 < average_score <= 50.00:
-        quartile = f"{average_score:.2f} - Quartile 2"
+        quartile = "Quartile 2"
     elif 50.00 < average_score <= 82.40:
-        quartile = f"{average_score:.2f} - Quartile 3"
+        quartile = "Quartile 3"
     elif average_score > 82.40:
-        quartile = f"{average_score:.2f} - Quartile 4"
+        quartile = "Quartile 4"
     print(f"Average Score: {average_score}, Total Score: {total_score}, Quartile: {quartile}")
     return {
         'average_score': average_score,
@@ -1570,6 +1570,17 @@ def main():
         # Calculate bond portfolio harm scores AFTER bond processing is complete
         portfolio_harm_scores_bonds = get_combined_portfolio_harm_scores()
         
+        # Helper function to get quartile range
+        def get_quartile_range(quartile):
+            ranges = {
+                'Quartile 1': '(1.00-38.80)',
+                'Quartile 2': '(38.81-50.00)', 
+                'Quartile 3': '(50.01-82.40)',
+                'Quartile 4': '(82.41-100.00)',
+                'N/A': ''
+            }
+            return ranges.get(quartile, '')
+        
             # Create the container for the metrics
         st.markdown('<div class="metric-container">', unsafe_allow_html=True)
 
@@ -1614,7 +1625,7 @@ def main():
                             <span class="tooltiptext">This score shows where the portfolio sits relative to other potential portfolio compositions. Portfolios in the first quartile (highest harm) range from 1.00-38.80, the second quartile (moderate-high harm) ranges from 38.81 to 50.00, the third quartile (moderate low) ranges from 50.01-82.40 and the fourth quartile (lowest harm) ranges from 82.41-100.00.</span>
                         </div>
                     </div>
-                    <div class="metric-value">{portfolio_harm_scores_bonds['quartile']}</div>
+                    <div class="metric-value">{portfolio_harm_scores_bonds['quartile']}<br><div style='font-size: 12px;margin-top: -10px;margin-bottom: -10px;'>{get_quartile_range(portfolio_harm_scores_bonds['quartile'])}</div></div>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -1626,8 +1637,19 @@ def main():
         # Calculate stock portfolio harm scores AFTER stock processing is complete
         portfolio_harm_scores_stocks = calculate_portfolio_harm_scores_stocks(st.session_state.stock_holdings)
         
-        # Create the container for the metrics
-        st.markdown('<div class="metric-container">', unsafe_allow_html=True)
+        # Helper function to get quartile range
+        def get_quartile_range_stocks(quartile):
+            ranges = {
+                'Quartile 1': '(1.00-38.80)',
+                'Quartile 2': '(38.81-50.00)', 
+                'Quartile 3': '(50.01-82.40)',
+                'Quartile 4': '(82.41-100.00)',
+                'N/A': ''
+            }
+            return ranges.get(quartile, '')
+        
+            # Create the container for the metrics
+            st.markdown('<div class="metric-container">', unsafe_allow_html=True)
 
         # Create each box with HTML/CSS
         col1, col2, col3 = st.columns(3)
@@ -1670,7 +1692,7 @@ def main():
                         <span class="tooltiptext">Where the average stock portfolio sits relative to other potential portfolio compositions using Min/Max data standardization. A portfolio exclusively comprised of the lowest harm security would score "0".</span>
                     </div>
                 </div>
-                <div class="metric-value">{portfolio_harm_scores_stocks['quartile']}</div>
+                <div class="metric-value">{portfolio_harm_scores_stocks['quartile']}<br><div style='font-size: 12px;margin-top: -10px;margin-bottom: -10px;'>{get_quartile_range_stocks(portfolio_harm_scores_stocks['quartile'])}</div></div>
             </div>
             """, unsafe_allow_html=True)
 
