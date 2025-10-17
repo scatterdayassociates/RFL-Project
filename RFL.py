@@ -1689,7 +1689,7 @@ def main():
                     <div class="tooltip">
                         Total Portfolio Harm Quartile
                         <span class="info-icon">?</span>
-                        <span class="tooltiptext">Where the average stock portfolio sits relative to other potential portfolio compositions using Min/Max data standardization. A portfolio exclusively comprised of the lowest harm security would score "0".</span>
+                        <span class="tooltiptext">This score shows where the portfolio sits relative to other potential portfolio compositions. Portfolios in the first quartile (high harm) range from 1.00-38.80, the second quartile (moderate-high harm) ranges from 38.81 to 50.00, the third quartile (moderate-lower harm) ranges from 50.01-82.40 and the fourth quartile (lower harm) ranges from 82.41-100.00.</span>
                     </div>
                 </div>
                 <div class="metric-value">{portfolio_harm_scores_stocks['quartile']}<br><div style='font-size: 12px;margin-top: -10px;margin-bottom: -10px;'>{get_quartile_range_stocks(portfolio_harm_scores_stocks['quartile'])}</div></div>
